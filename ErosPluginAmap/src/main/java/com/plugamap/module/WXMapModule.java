@@ -1,7 +1,6 @@
 package com.plugamap.module;
 
 import android.support.annotation.Nullable;
-import android.text.TextUtils;
 import android.util.Log;
 
 import com.alibaba.weex.plugin.annotation.WeexModule;
@@ -9,20 +8,17 @@ import com.amap.api.location.AMapLocation;
 import com.amap.api.location.AMapLocationClient;
 import com.amap.api.location.AMapLocationClientOption;
 import com.amap.api.location.AMapLocationListener;
-import com.amap.api.maps.AMap;
 import com.amap.api.maps.AMapUtils;
-import com.amap.api.maps.CameraUpdateFactory;
-import com.amap.api.maps.MapsInitializer;
 import com.amap.api.maps.model.LatLng;
-import com.eros.framework.BMWXEnvironment;
-import com.eros.framework.constant.Constant;
+import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.geocoder.GeocodeResult;
+import com.amap.api.services.geocoder.GeocodeSearch;
+import com.amap.api.services.geocoder.RegeocodeQuery;
+import com.amap.api.services.geocoder.RegeocodeResult;
 import com.eros.framework.manager.ManagerFactory;
-import com.eros.framework.model.PlatformConfigBean;
 import com.plugamap.component.WXMapPolygonComponent;
-import com.plugamap.component.WXMapViewComponent;
 import com.plugamap.manager.GeoManager;
 import com.taobao.weex.WXEnvironment;
-import com.taobao.weex.WXSDKManager;
 import com.taobao.weex.annotation.JSMethod;
 import com.taobao.weex.bridge.JSCallback;
 import com.taobao.weex.common.WXModule;
@@ -31,9 +27,11 @@ import com.taobao.weex.utils.WXLogUtils;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+
 
 /**
  * Created by budao on 2017/1/24.
@@ -46,7 +44,6 @@ public class WXMapModule extends WXModule {
 
     private static final String RESULT_OK = "success";
     private static final String RESULT_FAILED = "failed";
-
     /**
      * get line distance between to POI.
      */
@@ -150,5 +147,58 @@ public class WXMapModule extends WXModule {
         GeoManager mGeoManager = ManagerFactory.getManagerService(GeoManager.class);
         mGeoManager.initAmap(amapKey);
     }
+
+    /**
+     * 响应逆地理编码
+     */
+    @JSMethod
+    public void geoAddress(String searchLatlonPoint, @Nullable final JSCallback callback) {
+       if (searchLatlonPoint != null){
+         GeocodeSearch geocoderSearch = new GeocodeSearch(this.mWXSDKInstance.getContext());
+         geocoderSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
+           @Override
+           public void onRegeocodeSearched(RegeocodeResult regeocodeResult, int i) {
+             if (i == 1000 && callback != null) {
+               if (regeocodeResult != null && regeocodeResult.getRegeocodeAddress() != null
+                       && regeocodeResult.getRegeocodeAddress().getFormatAddress() != null) {
+                 HashMap map = new HashMap(2);
+                 map.put("country", regeocodeResult.getRegeocodeAddress().getCountry());
+                 map.put("province", regeocodeResult.getRegeocodeAddress().getProvince());
+                 map.put("city", regeocodeResult.getRegeocodeAddress().getCity());
+                 map.put("district", regeocodeResult.getRegeocodeAddress().getDistrict());
+                 map.put("address", regeocodeResult.getRegeocodeAddress().getFormatAddress());
+                 map.put("adCode", regeocodeResult.getRegeocodeAddress().getAdCode());
+                 map.put("towncode", regeocodeResult.getRegeocodeAddress().getTowncode());
+                 callback.invoke(map);
+//                 WXLogUtils.d(TAG, "Amap: " + city + "," + address);
+               }
+             }
+             if (callback != null) {
+
+             }
+           }
+
+           @Override
+           public void onGeocodeSearched(GeocodeResult geocodeResult, int i) {
+
+           }
+         });
+         try {
+//            {"longitude":116.486999783908,"latitude":40.00003008347923}
+           JSONObject jsonObject = new JSONObject(searchLatlonPoint);
+           LatLonPoint latLng = new LatLonPoint(jsonObject.getDouble("latitude"), jsonObject.getDouble("longitude"));
+           // 第一个参数表示一个Latlng，第二参数表示范围多少米，第三个参数表示是火系坐标系还是GPS原生坐标系
+           RegeocodeQuery query = new RegeocodeQuery(latLng, 100,GeocodeSearch.AMAP);
+           geocoderSearch.getFromLocationAsyn(query);
+
+         } catch (JSONException e) {
+           e.printStackTrace();
+         }
+
+
+        }
+    }
+
+
 
 }

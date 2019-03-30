@@ -31,6 +31,9 @@ import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MyLocationStyle;
 import com.amap.api.maps.model.VisibleRegion;
+import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.geocoder.GeocodeSearch;
+import com.amap.api.services.geocoder.RegeocodeQuery;
 import com.plugamap.util.Constant;
 import com.taobao.weex.WXSDKInstance;
 import com.taobao.weex.annotation.JSMethod;
@@ -67,6 +70,9 @@ public class WXMapViewComponent extends WXVContainer<FrameLayout> implements Loc
   private boolean isZoomEnable = true;
   private boolean isCompassEnable = true;
   private boolean isMyLocationEnable = false;
+  private boolean fixed = false; //是否固定marker，需要和marker组件保持一致
+
+
   private float mZoomLevel;
   private int mGesture = 0xF;
   private boolean isIndoorSwitchEnable = false;
@@ -79,6 +85,7 @@ public class WXMapViewComponent extends WXVContainer<FrameLayout> implements Loc
   private Queue<MapOperationTask> paddingTasks = new LinkedList<>();
   private FrameLayout mapContainer;
   private int fakeBackgroundColor = Color.rgb(242, 238, 232);
+  private LatLonPoint centerPosition;
 
   public WXMapViewComponent(WXSDKInstance instance, WXDomObject dom, WXVContainer parent, boolean isLazy) {
     super(instance, dom, parent, isLazy);
@@ -154,6 +161,8 @@ public class WXMapViewComponent extends WXVContainer<FrameLayout> implements Loc
           return false;
         }
       });
+
+      fixed = (Boolean) getDomObject().getAttrs().get(Constant.Name.FIXED_CENTER);
       mAMap.setOnCameraChangeListener(new AMap.OnCameraChangeListener() {
 
         private boolean mZoomChanged;
@@ -187,6 +196,13 @@ public class WXMapViewComponent extends WXVContainer<FrameLayout> implements Loc
             data.put("visibleRegion", region);
             getInstance().fireEvent(getRef(), Constant.EVENT.ZOOM_CHANGE, data);
           }
+          if (fixed) {
+            centerPosition = new LatLonPoint(cameraPosition.target.latitude, cameraPosition.target.longitude);
+            WXLogUtils.d(TAG, "中心点经纬度: " + centerPosition.toString());
+            Map<String, Object> data = new HashMap<>();
+            data.put("centerPosition",centerPosition);
+            getInstance().fireEvent(getRef(), Constant.EVENT.CAMERA_CHANGE, data);
+          }
         }
       });
 
@@ -201,7 +217,10 @@ public class WXMapViewComponent extends WXVContainer<FrameLayout> implements Loc
               dragged = true;
               break;
             case MotionEvent.ACTION_UP:
-              if (dragged) getInstance().fireEvent(getRef(), Constant.EVENT.DRAG_CHANGE);
+
+              if (dragged) {
+                getInstance().fireEvent(getRef(), Constant.EVENT.DRAG_CHANGE);
+              }
               dragged = false;
               break;
           }
@@ -691,4 +710,7 @@ public class WXMapViewComponent extends WXVContainer<FrameLayout> implements Loc
   interface MapOperationTask {
     void execute(TextureMapView mapView);
   }
+
+
+
 }

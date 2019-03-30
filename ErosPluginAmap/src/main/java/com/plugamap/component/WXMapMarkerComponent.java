@@ -3,6 +3,7 @@ package com.plugamap.component;
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.Point;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.support.annotation.NonNull;
@@ -53,6 +54,8 @@ public class WXMapMarkerComponent extends AbstractMapWidgetComponent<Marker> {
 
   }
 
+  private boolean isMarkerFixed = false; //是否固定marker为中心点
+
   private static boolean isGif(String file) {
     FileInputStream imgFile = null;
     try {
@@ -78,10 +81,11 @@ public class WXMapMarkerComponent extends AbstractMapWidgetComponent<Marker> {
   @Override
   protected View initComponentHostView(@NonNull Context context) {
     if (getParent() != null && getParent() instanceof WXMapViewComponent) {
+      Boolean fixed = (Boolean) getDomObject().getAttrs().get(Constant.Name.FIXED_CENTER);
       String title = (String) getDomObject().getAttrs().get(Constant.Name.TITLE);
       String icon = (String) getDomObject().getAttrs().get(Constant.Name.ICON);
       String position = getDomObject().getAttrs().get(Constant.Name.POSITION).toString();
-      initMarker(title, position, icon);
+      initMarker(title, position, icon, fixed);
     }
     // FixMe： 只是为了绕过updateProperties中的逻辑检查
     return new ViewStub(context);
@@ -97,6 +101,18 @@ public class WXMapMarkerComponent extends AbstractMapWidgetComponent<Marker> {
         return true;
     }
     return super.setProperty(key, param);
+  }
+
+
+  // 设置是否固定
+  @WXComponentProp(name = Constant.Name.FIXED_CENTER)
+  public void setFixed(final Boolean fixed) {
+    execAfterWidgetReady("setMarkerFixed", new Runnable() {
+      @Override
+      public void run() {
+        setMarkerFixed(getWidget(),fixed);
+      }
+    });
   }
 
   @WXComponentProp(name = Constant.Name.TITLE)
@@ -155,7 +171,7 @@ public class WXMapMarkerComponent extends AbstractMapWidgetComponent<Marker> {
     getInstance().fireEvent(getRef(), Constants.Event.CLICK);
   }
 
-  private void initMarker(final String title, final String position, final String icon) {
+  private void initMarker(final String title, final String position, final String icon, final Boolean fixed) {
     postMapOperationTask((WXMapViewComponent) getParent(), new WXMapViewComponent.MapOperationTask() {
       @Override
       public void execute(TextureMapView mapView) {
@@ -168,6 +184,13 @@ public class WXMapMarkerComponent extends AbstractMapWidgetComponent<Marker> {
         setMarkerTitle(marker, title);
         setMarkerPosition(marker, position);
         setMarkerIcon(marker, icon);
+        setMarkerFixed(marker, fixed);
+        if(isMarkerFixed) {
+            LatLng latLng = mapView.getMap().getCameraPosition().target;
+            Point screenPosition = mapView.getMap().getProjection().toScreenLocation(latLng);
+            marker.setPositionByPixels(screenPosition.x,screenPosition.y);
+            marker.setZIndex(1);
+        }
         setWidget(marker);
       }
     });
@@ -303,6 +326,11 @@ public class WXMapMarkerComponent extends AbstractMapWidgetComponent<Marker> {
     } catch (JSONException e) {
       e.printStackTrace();
     }
+  }
+
+  // 设置marker固定中心点
+  private void setMarkerFixed(@Nullable final Marker mMarker, boolean fixed) {
+    if(mMarker != null) isMarkerFixed = fixed;
   }
 
   private void setMarkerTitle(@Nullable final Marker mMarker, String title) {

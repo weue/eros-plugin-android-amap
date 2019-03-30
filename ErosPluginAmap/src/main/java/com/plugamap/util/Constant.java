@@ -40,6 +40,7 @@ public class Constant {
     String ICON = "icon";
     String TITLE = "title";
     String HIDE_CALL_OUT = "hideCallout";
+    String FIXED_CENTER = "fixed";
 
     // polyline
     String PATH = "path";
@@ -61,5 +62,6 @@ public class Constant {
   public static interface EVENT {
     String ZOOM_CHANGE = "zoomchange";
     String DRAG_CHANGE = "dragend";
+    String CAMERA_CHANGE = "camerachange";
   }
 }
